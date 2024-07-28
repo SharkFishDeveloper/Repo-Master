@@ -38,8 +38,11 @@ class Gitpulse {
         fs.mkdir(this.gitpath, { recursive: true }, (err) => {
           console.log(err);
         });
-        fs.writeFileSync(this.commitsPath, "init");
+        fs.writeFileSync(this.commitsPath, "");
         fs.mkdir(this.stagingPath, { recursive: true }, (err) => {
+          console.log(err);
+        });
+        fs.mkdir(path.join(this.objPath,"init"), { recursive: true }, (err) => {
           console.log(err);
         });
         fs.mkdir(`${this.objPath}/init`, { recursive: true }, (err) => {
@@ -353,54 +356,102 @@ class Gitpulse {
   async commit(message: string) {
     console.log("Commit Message : ", message);
     const commitDataPath: string = fs.readFileSync(this.commitsPath, "utf-8");
+    const lines = commitDataPath.split('\n').filter(line => line !== '');
     const pathStage: string[] | null = [];
     const stagedFiles: string[] | null = [];
 
-    // if (commitDataPath === "init") {
-    //   try {
-    //     const files: string[] = await new Promise((resolve, reject) => {
-    //       fs.readdir(this.stagingPath, (err, files) => {
-    //         if (err) {
-    //           reject(err);
-    //         } else {
-    //           resolve(files);
-    //         }
-    //       });
-    //     });
-    //     stagedFiles.push(...files);
-    //   } catch (err) {
-    //     // console.error("Error reading staging directory:", err);
-    //   }
-    //   stagedFiles.forEach(async (file) => {
-    //     pathStage.push(path.join(this.stagingPath, file));
-    //     //!
+    if (commitDataPath === "") {
+      try {
+        const files: string[] = await new Promise((resolve, reject) => {
+          fs.readdir(this.stagingPath, (err, files) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(files);
+            }
+          });
+        });
+        stagedFiles.push(...files);
+      } catch (err) {
+        // console.error("Error reading staging directory:", err);
+      }
+      stagedFiles.forEach(async (file) => {
+        pathStage.push(path.join(this.stagingPath, file));
+        //!
   
-    //     const path1 = (path.join(this.cwd, "Git-pulse/.gitpulse", "staging"));
-    //     // console.log(path1, path.join(this.objPath, "init"));
-    //     await this.copyDirectory(path1, path.join(this.objPath, "init"))
-    //       .then(() => console.log(''))
-    //       // .catch(err => console.error('Error during copy operation:', err));
-    //   })
-    // }
-    // else{
-    // console.log("STAGIng",this.stagingPath);
-     const result =await dirCompare.compare(this.stagingPath,path.join(this.objPath,commitDataPath));
+        const path1 = (path.join(this.cwd, "Git-pulse/.gitpulse", "staging"));
+        // console.log(path1, path.join(this.objPath, "init"));
+        await this.copyDirectory(path1, path.join(this.objPath, "init"))
+          .then(() => console.log(''))
+          // .catch(err => console.error('Error during copy operation:', err));
+      })
+      fs.writeFileSync(this.commitsPath,`\ninit:${message}:${new Date()}`);
+    }
+    else if(lines.length==1){
+      console.log("Diff is 1",lines.length-1);
+      // return;
+      const randomBytes = crypto.randomBytes(20); // 20 bytes * 2 (hex) = 40 characters
+      const newCommitId = randomBytes.toString('hex');
+      const newCommitIdpath = path.join(this.objPath,newCommitId);
+      fs.mkdirSync(newCommitIdpath);
+      fs.mkdirSync(path.join(newCommitIdpath,"mdf"));
+      fs.writeFileSync(path.join(newCommitIdpath,"ad.txt"),"");
+      fs.writeFileSync(path.join(newCommitIdpath,"rm.txt"),"");
+      // fs.appendFileSync(this.commitsPath, `\n${message}:${newCommitId}:${new Date()}`);
      try {
-      const result = await dirCompare.compare(this.stagingPath, path.join(this.objPath, commitDataPath),{compareContent:true});
-      result.diffSet?.forEach((diff) => {
+      const result = await dirCompare.compare(this.stagingPath, path.join(this.objPath, "init"),{compareContent:true});
+      const modifiedFiles:string[]|null = [];
+      const addedFiles:string[]|null = [];
+      const deletedFiles:string[]|null = [];
+      result.diffSet?.forEach((diff,index) => {
           if(diff.state==="distinct"){
-           console.log(path.join(diff.path1 as string,diff.name1 as string));   
-          }else if(diff.state==="right"){
-            console.log(path.join(diff.path2 as string,diff.name2 as string)); 
+            let diffpath1 =  diff.path1 as string;
+            let a= path.join(this.cwd,diffpath1.split("staging")[1]);
+            // console.log("@@@@@@@@@",path.join(diffpath1,diff.name1 as string))
+            try {
+              const readingStg = fs.readFileSync(path.join(diffpath1,diff.name1 as string),"utf-8")
+              // console.log(readingStg);
+              // console.log("###########")
+            fs.writeFileSync(path.join(newCommitIdpath,"mdf",`${index}.txt`),
+            
+            `${path.join(a,diff.name1 as string)}
+            \n${readingStg}`
+            );
+            } catch (error) {
+              console.log(error)
+            }
+            
+            modifiedFiles?.push(path.join(a,diff.name1 as string));
+           console.log("Modified content",path.join(diff.path1 as string,diff.name1 as string));   
           }
+          
+          else if(diff.state==="right"){
+            let diffpath2 =  diff.path2 as string;
+            let a= path.join(this.cwd,diffpath2.split("init")[1]);
+            fs.appendFileSync(path.join(newCommitIdpath,"rm.txt"), `\n${path.join(a, diff.name2 as string)}`);
+            // console.log("########","@@@",diffpath2.split("init")[1],diffpath2);
+            deletedFiles?.push(path.join(a,diff.name2 as string));
+            console.log("Deleted files",path.join(diff.path2 as string,diff.name2 as string)); 
+          }
+          
           else if(diff.state==="left"){
-            console.log(path.join(diff.path1 as string,diff.name1 as string)); 
+            let diffpath1 =  diff.path1 as string;
+            let a= path.join(this.cwd,diffpath1.split("staging")[1]);
+            addedFiles?.push(path.join(a,diff.name1 as string));
+            fs.appendFileSync(path.join(newCommitIdpath,"ad.txt"), `\n${path.join(a, diff.name1 as string)}`);
+            console.log("Added files",path.join(diff.path1 as string,diff.name1 as string)); 
           }
       });
+      console.log("M",modifiedFiles);
+      console.log("A",addedFiles);
+      console.log("D",deletedFiles);
     } catch (error) {
       console.error("Error comparing directories:", error);
     }
-    // }
+    }else{
+
+    }
+    console.log(lines.length)
     // console.log(pathStage);
   }
 
