@@ -1,0 +1,26 @@
+{
+  "name": "gitpulse",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "git": "tsc -b && node ./dist/index"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.14.12"
+  },
+  "dependencies": {
+    "@types/cli-color": "^2.0.6",
+    "@types/commander": "^2.12.2",
+    "@types/fs-extra": "^11.0.4",
+    "@types/klaw": "^3.0.6",
+    "cli-color": "^2.0.4",
+    "commander": "^12.1.0",
+    "dir-compare": "^5.0.0",
+    "fs-extra": "^11.2.0",
+    "klaw": "^4.1.0"
+  }
+}
